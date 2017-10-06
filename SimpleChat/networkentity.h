@@ -18,12 +18,13 @@
 #include <string>
 #include <sstream>
 
-enum EMessageType : unsigned short
+enum EMessageType : unsigned char
 {
 	HANDSHAKE,
 	DATA,
 	KEEPALIVE,
-	COMMAND
+	COMMAND,
+	BROADCAST
 };
 
 struct TPacket 
@@ -79,5 +80,9 @@ public:
 	virtual void ReceiveData(char* _pcBufferToReceiveData) = 0;
 	virtual void GetRemoteIPAddress(char *_pcSendersIP) = 0;
 	virtual unsigned short GetRemotePort() = 0;
+	
+protected:
+	//Additional state variable to indicate whether a network entity is online or not
+	bool m_bOnline;
 };
 #endif 

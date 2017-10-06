@@ -16,6 +16,7 @@
 #define __CLIENT_H__
 
 // Library Includes
+#include <string>
 
 // Local Includes
 #include "networkentity.h"
@@ -46,7 +47,15 @@ public:
 	virtual unsigned short GetRemotePort();
 
 	void GetPacketData(char* _pcLocalBuffer);
-	CWorkQueue<char*>* GetWorkQueue();
+	CWorkQueue<std::string>* GetWorkQueue();
+
+	//Qs7 : Broadcast to Detect Servers
+	bool BroadcastForServers();
+
+private:
+	// Question 7 : Broadcast to Detect Servers
+	void ReceiveBroadcastMessages(char* _pcBufferToReceiveData);
+
 private:
 	//A buffer to contain all packet data for the client
 	char* m_pcPacketData;
@@ -57,7 +66,12 @@ private:
 	//A username to associate with a client
 	char m_cUserName[50];
 	//A workQueue to distribute messages between the main thread and Receive thread.
-	CWorkQueue<char*>* m_pWorkQueue;
+	CWorkQueue<std::string>* m_pWorkQueue;
+
+	//Question 7
+	//A vector to hold all the servers found after broadcasting
+	std::vector<sockaddr_in> m_vecServerAddr;
+	bool m_bDoBroadcast;
 };
 
 #endif

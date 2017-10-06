@@ -4,7 +4,7 @@
 // Auckland
 // New Zealand
 //
-// (c) 2017 Media Design School
+// (c) 2015 Media Design School
 //
 // File Name	: 
 // Description	: 

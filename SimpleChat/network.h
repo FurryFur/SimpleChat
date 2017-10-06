@@ -25,7 +25,7 @@ enum EEntityType
 //constants
 namespace
 {
-	unsigned const DEFAULT_SERVER_PORT = 60012;
+	unsigned const DEFAULT_SERVER_PORT = 50012;
 	unsigned const DEFAULT_CLIENT_PORT = 60013;
 	unsigned const MAX_MESSAGE_LENGTH = 256;
 	unsigned const MAX_ADDRESS_LENGTH = 32;
@@ -62,7 +62,7 @@ private:
 	CNetwork& operator= (const CNetwork& _kr);
 
 protected:
-	//A network is a container for a network entity
+	//A network has a network entity
 	INetworkEntity* m_pNetworkEntity;
 	bool m_bOnline;
 

@@ -180,7 +180,7 @@ unsigned short CServer::GetRemotePort()
 
 void CServer::ProcessData(char* _pcDataReceived)
 {
-	TPacket _packetRecvd, _packetSent;
+	TPacket _packetRecvd, _packetToSend;
 	_packetRecvd = _packetRecvd.Deserialize(_pcDataReceived);
 	switch (_packetRecvd.MessageType)
 	{
@@ -195,13 +195,23 @@ void CServer::ProcessData(char* _pcDataReceived)
 	}
 	case DATA:
 	{
-		_packetSent.Serialize(DATA, _packetRecvd.MessageContent);
-		SendData(_packetSent.PacketData);
+		_packetToSend.Serialize(DATA, _packetRecvd.MessageContent);
+		SendData(_packetToSend.PacketData);
 
 		//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-		//_packetSent.Serialize(DATA, "TEST MESSAGE");
-		//SendData(_packetSent.PacketData);
+		_packetToSend.Serialize(DATA, "TEST MESSAGE");
+		SendData(_packetToSend.PacketData);
+
+		break;
+	}
+
+	case BROADCAST:
+	{
+		std::cout << "Received a broadcast packet" << std::endl;
+		//Just send out a packet to the back to the client again which will have the server's IP and port in it's sender fields
+		_packetToSend.Serialize(BROADCAST, "I'm here!");
+		SendData(_packetToSend.PacketData);
 		break;
 	}
 

@@ -4,7 +4,7 @@
 // Auckland
 // New Zealand
 //
-// (c) 2017 Media Design School
+// (c) 2015 Media Design School
 //
 // File Name	: 
 // Description	: 
@@ -132,8 +132,9 @@ int main()
 				else
 				{
 					//Retrieve off a message from the queue and process it
-					_pClient->GetWorkQueue()->pop(_pcPacketData);
-					_pClient->ProcessData(_pcPacketData);
+					std::string temp;
+					_pClient->GetWorkQueue()->pop(temp);
+					_pClient->ProcessData(const_cast<char*>(temp.c_str()));
 				}
 			}
 

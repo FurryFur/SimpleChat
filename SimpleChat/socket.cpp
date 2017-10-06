@@ -104,3 +104,46 @@ std::string CSocket::GetLocalAddress()
 
 	return std::string(_pcLocalAddress);
 }
+
+int CSocket::EnableBroadcast()
+{
+	int _iBroadCastOption = 1;
+	int _iResult = setsockopt(m_hSocket, SOL_SOCKET, SO_BROADCAST, 
+		reinterpret_cast<char*>(&_iBroadCastOption), sizeof(_iBroadCastOption));
+	if (_iResult == SOCKET_ERROR)
+	{
+		int _iError = WSAGetLastError();
+		ErrorRoutines::PrintWSAErrorInfo(_iError);
+		std::cout << "Unable to enable broadcast option on the socket" << std::endl;
+		closesocket(m_hSocket);
+		return _iError;
+	}
+	return _iResult;
+}
+
+
+int CSocket::DisableBroadcast()
+{
+	int _iBroadCastOption = 0;
+	int _iResult = setsockopt(m_hSocket, SOL_SOCKET, SO_BROADCAST, 
+		reinterpret_cast<char*>(&_iBroadCastOption), sizeof(_iBroadCastOption));
+	if (_iResult == SOCKET_ERROR)
+	{
+		int _iError = WSAGetLastError();
+		ErrorRoutines::PrintWSAErrorInfo(_iError);
+		std::cout << "Unable to disable broadcast option on the socket" << std::endl;
+		closesocket(m_hSocket);
+		return _iError;
+	}
+	return _iResult;
+}
+
+void CSocket::SetRemotePort(unsigned short _usRemotePort)
+{
+	m_usRemotePort = _usRemotePort;
+}
+
+void CSocket::SetRemoteAddress(unsigned long _ulRemoteAddress)
+{
+	m_ulRemoteIPAddress = _ulRemoteAddress;
+}

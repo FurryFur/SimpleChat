@@ -1,3 +1,12 @@
+/**
+*	@file ConsoleTools.h
+*
+*
+*	@brief	Some simple tools to get input from the user on a windows console.
+*
+*/
+
+
 #ifndef __CONSOLE_TOOLS_H__
 #define __CONSOLE_TOOLS_H__
 
