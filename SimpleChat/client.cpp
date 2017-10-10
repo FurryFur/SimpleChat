@@ -346,7 +346,7 @@ void CClient::ReceiveData()
 			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
 			packet->Deserialize(m_recvBuffer);
 			packet->FromAddress = fromAddress;
-			//m_pWorkQueue->push(std::move(packet));
+			m_pWorkQueue->push(std::move(packet));
 		}
 		//std::this_thread::yield(); //Yield the processor; giving the main a chance to run.
 	}
@@ -354,7 +354,6 @@ void CClient::ReceiveData()
 
 void CClient::ProcessData(TPacket& packetRecvd)
 {
-	packetRecvd.Deserialize(packetRecvd.PacketData);
 	switch (packetRecvd.MessageType)
 	{
 	case HANDSHAKE:

@@ -125,7 +125,6 @@ void CServer::ReceiveData()
 							  //In this case; it should be the details of the server; since the client only ever receives from the server
 	int iSizeOfAdd = sizeof(fromAddress);
 	int _iNumOfBytesReceived;
-	int _iPacketSize;
 
 	while (true)
 	{
@@ -156,7 +155,7 @@ void CServer::ReceiveData()
 			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
 			packet->Deserialize(m_recvBuffer);
 			packet->FromAddress = fromAddress;
-			//m_pWorkQueue->push(std::move(packet));
+			m_pWorkQueue->push(std::move(packet));
 		}
 		//std::this_thread::yield();
 		

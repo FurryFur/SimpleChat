@@ -24,10 +24,10 @@ public:
 	AtomicQueue() {}
 
 	// Insert an item at the back of the queue.
-	void push(const T&& item)
+	void push(T&& item)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_workQueue.push(std::forward<const T>(item));
+		m_workQueue.push(std::forward<T>(item));
 		m_cvNotEmpty.notify_one(); 
 	}
 

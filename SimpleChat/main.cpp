@@ -31,9 +31,6 @@
 
 int main()
 {
-	char _cIPAddress[MAX_ADDRESS_LENGTH]; // An array to hold the IP Address as a string
-										  //ZeroMemory(&_cIPAddress, strlen(_cIPAddress));
-
 	unsigned char _ucChoice;
 	EEntityType _eNetworkEntityType;
 	CInputLineBuffer _InputBuffer(MAX_MESSAGE_LENGTH);
