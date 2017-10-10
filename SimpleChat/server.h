@@ -19,10 +19,12 @@
 #include <Windows.h>
 #include <map>
 #include <time.h>
+#include <memory>
 
 // Local Includes
 #include "networkentity.h"
-#include "WorkQueue.h"
+#include "AtomicQueue.h"
+#include "socket.h"
 
 // Types
 
@@ -48,35 +50,29 @@ public:
 	~CServer();
 
 	// Virtual Methods from the Network Entity Interface.
-	virtual bool Initialise(); //Implicit in the intialization is the creation and binding of the socket
-	virtual bool SendData(char* _pcDataToSend);
-	virtual void ReceiveData(char* _pcBufferToReceiveData);
-	virtual void ProcessData(char* _pcDataReceived);
-	virtual void GetRemoteIPAddress(char* _pcSendersIP);
-	virtual unsigned short GetRemotePort();
+	virtual bool Initialise() override; //Implicit in the intialization is the creation and binding of the socket
+	virtual bool SendData(char* dataToSend, const sockaddr_in& address) override;
+	virtual void ReceiveData() override;
+	virtual void ProcessData(TPacket& packetRecvd) override;
+	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) override;
+	virtual unsigned short GetRemotePort(const TPacket& packet) override;
 
-	CWorkQueue<char*>* GetWorkQueue();
+	AtomicQueue<std::unique_ptr<TPacket>>* GetWorkQueue();
 	//Qs 2: Function to add clients to the map.
 private:
-	bool AddClient(std::string _strClientName);
+	bool AddClient(const sockaddr_in& address, std::string _strClientName);
 
-
-
-private:
 	//A Buffer to contain all packet data for the server
-	char* m_pcPacketData;
+	char* m_recvBuffer;
 	//A server has a socket object to create the UDP socket at its end.
 	CSocket* m_pServerSocket;
-	// Make a member variable to extract the IP and port number of the sender from whom we are receiving
-	//Since it is a UDP socket capable of receiving from multiple clients; these details will change depending on who has sent the packet we are currently processing.
-	sockaddr_in m_ClientAddress; 
 
 	//Qs 2 : Make a map to hold the details of all the client who have connected. 
 	//The structure maps client addresses to client details
 	std::map<std::string, TClientDetails>* m_pConnectedClients;
 
 	//A workQueue to distribute messages between the main thread and Receive thread.
-	CWorkQueue<char*>* m_pWorkQueue;
+	AtomicQueue<std::unique_ptr<TPacket>>* m_pWorkQueue;
 };
 
 #endif

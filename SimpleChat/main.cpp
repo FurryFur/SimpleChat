@@ -31,10 +31,6 @@
 
 int main()
 {
-	char* _pcPacketData = 0; //A local buffer to receive packet data info
-	_pcPacketData = new char[MAX_MESSAGE_LENGTH];
-	strcpy_s(_pcPacketData, strlen("") + 1, "");
-
 	char _cIPAddress[MAX_ADDRESS_LENGTH]; // An array to hold the IP Address as a string
 										  //ZeroMemory(&_cIPAddress, strlen(_cIPAddress));
 
@@ -48,7 +44,7 @@ int main()
 	_rNetwork.StartUp();
 
 	//A pointer to hold a client instance
-	CClient* _pClient = nullptr;
+	CClient* client = nullptr;
 	//A pointer to hold a server instance
 	CServer* _pServer = nullptr;
 
@@ -84,8 +80,8 @@ int main()
 	if (_eNetworkEntityType == CLIENT) //if network entity is a client
 	{
 
-		_pClient = static_cast<CClient*>(_rNetwork.GetInstance().GetNetworkEntity());
-		_ClientReceiveThread = std::thread(&CClient::ReceiveData, _pClient, std::ref(_pcPacketData));
+		client = static_cast<CClient*>(_rNetwork.GetInstance().GetNetworkEntity());
+		_ClientReceiveThread = std::thread(&CClient::ReceiveData, client);
 
 	}
 
@@ -94,7 +90,7 @@ int main()
 	{
 
 		_pServer = static_cast<CServer*>(_rNetwork.GetInstance().GetNetworkEntity());
-		_ServerReceiveThread = std::thread(&CServer::ReceiveData, _pServer, std::ref(_pcPacketData));
+		_ServerReceiveThread = std::thread(&CServer::ReceiveData, _pServer);
 
 	}
 
@@ -102,7 +98,7 @@ int main()
 	{
 		if (_eNetworkEntityType == CLIENT) //if network entity is a client
 		{
-			_pClient = static_cast<CClient*>(_rNetwork.GetInstance().GetNetworkEntity());
+			client = static_cast<CClient*>(_rNetwork.GetInstance().GetNetworkEntity());
 
 			//Prepare for reading input from the user
 			_InputBuffer.PrintToScreenTop();
@@ -116,25 +112,25 @@ int main()
 				//Put the message into a packet structure
 				TPacket _packet;
 				_packet.Serialize(DATA, const_cast<char*>(_InputBuffer.GetString())); //Hardcoded username; change to name as taken in via user input.
-				_rNetwork.GetInstance().GetNetworkEntity()->SendData(_packet.PacketData);
+				client->SendData(_packet.PacketData);
 				//Clear the Input Buffer
 				_InputBuffer.ClearString();
 				//Print To Screen Top
 				_InputBuffer.PrintToScreenTop();
 			}
-			if (_pClient != nullptr)
+			if (client != nullptr)
 			{
 				//If the message queue is empty 
-				if (_pClient->GetWorkQueue()->empty())
+				if (client->GetWorkQueue()->empty())
 				{
 					//Don't do anything
 				}
 				else
 				{
 					//Retrieve off a message from the queue and process it
-					std::string temp;
-					_pClient->GetWorkQueue()->pop(temp);
-					_pClient->ProcessData(const_cast<char*>(temp.c_str()));
+					std::unique_ptr<TPacket> packetRecvd;
+					client->GetWorkQueue()->pop(packetRecvd);
+					client->ProcessData(*packetRecvd);
 				}
 			}
 
@@ -146,13 +142,10 @@ int main()
 			{
 				if (!_pServer->GetWorkQueue()->empty())
 				{
-					_rNetwork.GetInstance().GetNetworkEntity()->GetRemoteIPAddress(_cIPAddress);
-					//std::cout << _cIPAddress
-					//<< ":" << _rNetwork.GetInstance().GetNetworkEntity()->GetRemotePort() << "> " << _pcPacketData << std::endl;
-
 					//Retrieve off a message from the queue and process it
-					_pServer->GetWorkQueue()->pop(_pcPacketData);
-					_pServer->ProcessData(_pcPacketData);
+					std::unique_ptr<TPacket> packetRecvd;
+					_pServer->GetWorkQueue()->pop(packetRecvd);
+					_pServer->ProcessData(*packetRecvd);
 				}
 			}
 		}
@@ -167,6 +160,5 @@ int main()
 	_rNetwork.ShutDown();
 	_rNetwork.DestroyInstance();
 
-	delete[] _pcPacketData;
 	return 0;
 }

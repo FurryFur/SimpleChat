@@ -31,21 +31,21 @@
 
 
 CClient::CClient()
-	:m_pcPacketData(0)
+	:m_recvBuffer(0)
 	, m_pClientSocket(0)
 {
 	ZeroMemory(&m_ServerSocketAddress, sizeof(m_ServerSocketAddress));
 
 	//Create a Packet Array and fill it out with all zeros.
-	m_pcPacketData = new char[MAX_MESSAGE_LENGTH];
-	ZeroMemory(m_pcPacketData, MAX_MESSAGE_LENGTH);
+	m_recvBuffer = new char[MAX_MESSAGE_LENGTH];
+	ZeroMemory(m_recvBuffer, MAX_MESSAGE_LENGTH);
 
 }
 
 CClient::~CClient()
 {
-	delete[] m_pcPacketData;
-	m_pcPacketData = 0;
+	delete[] m_recvBuffer;
+	m_recvBuffer = 0;
 
 	delete m_pClientSocket;
 	m_pClientSocket = 0;
@@ -82,7 +82,7 @@ bool CClient::Initialise()
 	ZeroMemory(&m_cUserName, strlen(m_cUserName));
 
 	//Create a work queue to distribute messages between the main  thread and the receive thread.
-	m_pWorkQueue = new CWorkQueue<std::string>();
+	m_pWorkQueue = new AtomicQueue<std::unique_ptr<TPacket>>;
 
 	//Create a socket object
 	m_pClientSocket = new CSocket();
@@ -192,7 +192,7 @@ bool CClient::Initialise()
 
 	TPacket _packet;
 	_packet.Serialize(HANDSHAKE, _cUserName); 
-	SendData(_packet.PacketData);
+	SendData(_packet.PacketData, m_ServerSocketAddress);
 	return true;
 }
 
@@ -213,7 +213,7 @@ bool CClient::BroadcastForServers()
 	for (int i = 0; i < 10; i++) //Just try  a series of 10 ports to detect a runmning server; this is needed since we are testing multiple servers on the same local machine
 	{
 		m_ServerSocketAddress.sin_port = htons(DEFAULT_SERVER_PORT + i);
-		SendData(_packet.PacketData);
+		SendData(_packet.PacketData, m_ServerSocketAddress);
 	}
 	ReceiveBroadcastMessages(_pcTempBuffer);
 
@@ -275,23 +275,21 @@ void CClient::ReceiveBroadcastMessages(char* _pcBufferToReceiveData)
 	}//End of while loop
 }
 
-bool CClient::SendData(char* _pcDataToSend)
+bool CClient::SendData(char* dataToSend, const sockaddr_in& address)
 {
-	int _iBytesToSend = (int)strlen(_pcDataToSend) + 1;
+	int _iBytesToSend = (int)strlen(dataToSend) + 1;
 	
-	char _RemoteIP[MAX_ADDRESS_LENGTH];
-	inet_ntop(AF_INET, &m_ServerSocketAddress.sin_addr, _RemoteIP, sizeof(_RemoteIP));
 	//std::cout << "Trying to send " << _pcDataToSend << " to " << _RemoteIP << ":" << ntohs(m_ServerSocketAddress.sin_port) << std::endl;
 	char _message[MAX_MESSAGE_LENGTH];
-	strcpy_s(_message, strlen(_pcDataToSend) + 1, _pcDataToSend);
+	strcpy_s(_message, strlen(dataToSend) + 1, dataToSend);
 
 	int iNumBytes = sendto(
 		m_pClientSocket->GetSocketHandle(),				// socket to send through.
-		_pcDataToSend,									// data to send
+		dataToSend,									// data to send
 		_iBytesToSend,									// number of bytes to send
 		0,												// flags
-		reinterpret_cast<sockaddr*>(&m_ServerSocketAddress),	// address to be filled with packet target
-		sizeof(m_ServerSocketAddress)							// size of the above address struct.
+		reinterpret_cast<const sockaddr*>(&address),	// address to be filled with packet target
+		sizeof(address)							// size of the above address struct.
 		);
 	//iNumBytes;
 	if (_iBytesToSend != iNumBytes)
@@ -302,15 +300,18 @@ bool CClient::SendData(char* _pcDataToSend)
 	return true;
 }
 
-void CClient::ReceiveData(char* _pcBufferToReceiveData)
+bool CClient::SendData(char* dataToSend)
 {
-	sockaddr_in _FromAddress; // Make a local variable to extract the IP and port number of the sender from whom we are receiving
+	return SendData(dataToSend, m_ServerSocketAddress);
+}
+
+void CClient::ReceiveData()
+{
+	sockaddr_in fromAddress; // Make a local variable to extract the IP and port number of the sender from whom we are receiving
 	//In this case; it should be the details of the server; since the client only ever receives from the server
-	int iSizeOfAdd = sizeof(_FromAddress);
+	int iSizeOfAdd = sizeof(fromAddress);
 	int _iNumOfBytesReceived;
 	
-	//Receive data into a local buffer
-	char _buffer[MAX_MESSAGE_LENGTH];
 	//For debugging purpose only, convert the Address structure to a string.
 	char _pcAddress[50];
 	ZeroMemory(&_pcAddress, 50);
@@ -319,44 +320,42 @@ void CClient::ReceiveData(char* _pcBufferToReceiveData)
 		// pull off the packet(s) using recvfrom()
 		_iNumOfBytesReceived = recvfrom(			// pulls a packet from a single source...
 			this->m_pClientSocket->GetSocketHandle(),						// client-end socket being used to read from
-			_buffer,							// incoming packet to be filled
+			m_recvBuffer,							// incoming packet to be filled
 			MAX_MESSAGE_LENGTH,					   // length of incoming packet to be filled
 			0,										// flags
-			reinterpret_cast<sockaddr*>(&_FromAddress),	// address to be filled with packet source
+			reinterpret_cast<sockaddr*>(&fromAddress),	// address to be filled with packet source
 			&iSizeOfAdd								// size of the above address struct.
 			);
-		inet_ntop(AF_INET, &_FromAddress, _pcAddress, sizeof(_pcAddress));
+		inet_ntop(AF_INET, &fromAddress, _pcAddress, sizeof(_pcAddress));
 
 		if (_iNumOfBytesReceived < 0)
 		{
 			//Error in receiving data 
 			//std::cout << "recvfrom failed with error " << WSAGetLastError();
-			_pcBufferToReceiveData = 0;
 		}
 		else if (_iNumOfBytesReceived == 0)
 		{
 			//The remote end has shutdown the connection
-			_pcBufferToReceiveData = 0;
 		}
 		else
 		{
 			//There is valid data received.
-			strcpy_s(m_pcPacketData, strlen(_buffer) + 1, _buffer);
-			//strcpy_s(m_pcPacketData, strlen(_buffer) + 1, _buffer);
 			//Put this packet data in the workQ
-			m_ServerSocketAddress = _FromAddress;
-			m_pWorkQueue->push(m_pcPacketData);
+			m_ServerSocketAddress = fromAddress;
+
+			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
+			packet->Deserialize(m_recvBuffer);
+			packet->FromAddress = fromAddress;
+			//m_pWorkQueue->push(std::move(packet));
 		}
 		//std::this_thread::yield(); //Yield the processor; giving the main a chance to run.
 	}
 }
 
-void CClient::ProcessData(char* _pcDataReceived)
+void CClient::ProcessData(TPacket& packetRecvd)
 {
-
-	TPacket _packetRecvd;
-	_packetRecvd = _packetRecvd.Deserialize(_pcDataReceived);
-	switch (_packetRecvd.MessageType)
+	packetRecvd.Deserialize(packetRecvd.PacketData);
+	switch (packetRecvd.MessageType)
 	{
 	case HANDSHAKE:
 	{
@@ -366,7 +365,7 @@ void CClient::ProcessData(char* _pcDataReceived)
 	case DATA:
 	{
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
-		std::cout << "SERVER> " << _packetRecvd.MessageContent << std::endl;
+		std::cout << "SERVER> " << packetRecvd.MessageContent << std::endl;
 		break;
 	}
 	default:
@@ -375,10 +374,21 @@ void CClient::ProcessData(char* _pcDataReceived)
 	}
 }
 
-void CClient::GetRemoteIPAddress(char *_pcSendersIP)
+void CClient::GetRemoteIPAddress(TPacket& packet, char* sendersIP)
 {
-	inet_ntop(AF_INET, &(m_ServerSocketAddress.sin_addr), _pcSendersIP, sizeof(_pcSendersIP));
+	inet_ntop(AF_INET, &(packet.FromAddress.sin_addr), sendersIP, sizeof(sendersIP));
 	return;
+}
+
+void CClient::GetRemoteIPAddress(char* sendersIP)
+{
+	inet_ntop(AF_INET, &(m_ServerSocketAddress.sin_addr), sendersIP, sizeof(sendersIP));
+	return;
+}
+
+unsigned short CClient::GetRemotePort(const TPacket& packet)
+{
+	return ntohs(packet.FromAddress.sin_port);
 }
 
 unsigned short CClient::GetRemotePort()
@@ -388,10 +398,10 @@ unsigned short CClient::GetRemotePort()
 
 void CClient::GetPacketData(char* _pcLocalBuffer)
 {
-	strcpy_s(_pcLocalBuffer, strlen(m_pcPacketData) + 1, m_pcPacketData);
+	strcpy_s(_pcLocalBuffer, strlen(m_recvBuffer) + 1, m_recvBuffer);
 }
 
-CWorkQueue<std::string>* CClient::GetWorkQueue()
+AtomicQueue<std::unique_ptr<TPacket>>* CClient::GetWorkQueue()
 {
 	return m_pWorkQueue;
 }

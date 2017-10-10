@@ -151,6 +151,7 @@
     <ClCompile Include="socket.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AtomicQueue.h" />
     <ClInclude Include="client.h" />
     <ClInclude Include="consoletools.h" />
     <ClInclude Include="InputLineBuffer.h" />

@@ -17,10 +17,12 @@
 
 // Library Includes
 #include <string>
+#include <memory>
 
 // Local Includes
 #include "networkentity.h"
-#include "WorkQueue.h"
+#include "AtomicQueue.h"
+#include "socket.h"
 
 // Types
 
@@ -39,15 +41,18 @@ public:
 
 	// Methods
 	
-	virtual bool Initialise(); //Implicit in the intialization is the creation and binding of the socket
-	virtual bool SendData(char* _pcDataToSend);
-	virtual void ReceiveData(char* _pcBufferToReceiveData);
-	virtual void ProcessData(char* _pcDataReceived);
-	virtual void GetRemoteIPAddress(char* _pcSendersIP);
-	virtual unsigned short GetRemotePort();
+	virtual bool Initialise() override; //Implicit in the intialization is the creation and binding of the socket
+	virtual bool SendData(char* dataToSend, const sockaddr_in& address) override;
+	bool SendData(char* dataToSend);
+	virtual void ReceiveData() override;
+	virtual void ProcessData(TPacket& packetRecvd) override;
+	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) override;
+	void GetRemoteIPAddress(char* sendersIP);
+	virtual unsigned short GetRemotePort(const TPacket& packet) override;
+	unsigned short GetRemotePort();
 
 	void GetPacketData(char* _pcLocalBuffer);
-	CWorkQueue<std::string>* GetWorkQueue();
+	AtomicQueue<std::unique_ptr<TPacket>>* GetWorkQueue();
 
 	//Qs7 : Broadcast to Detect Servers
 	bool BroadcastForServers();
@@ -58,7 +63,7 @@ private:
 
 private:
 	//A buffer to contain all packet data for the client
-	char* m_pcPacketData;
+	char* m_recvBuffer;
 	//A client has a socket object to create the UDP socket at its end.
 	CSocket* m_pClientSocket;
 	// A Sockaddress structure which will have the details of the server 
@@ -66,7 +71,7 @@ private:
 	//A username to associate with a client
 	char m_cUserName[50];
 	//A workQueue to distribute messages between the main thread and Receive thread.
-	CWorkQueue<std::string>* m_pWorkQueue;
+	AtomicQueue<std::unique_ptr<TPacket>>* m_pWorkQueue;
 
 	//Question 7
 	//A vector to hold all the servers found after broadcasting

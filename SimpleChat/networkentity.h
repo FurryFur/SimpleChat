@@ -18,6 +18,8 @@
 #include <string>
 #include <sstream>
 
+#include "socket.h"
+
 enum EMessageType : unsigned char
 {
 	HANDSHAKE,
@@ -33,9 +35,10 @@ struct TPacket
 	char MessageContent[50];
 	char PacketData[60];
 	unsigned short PacketSize;
+	sockaddr_in FromAddress;
 
 	//void set_packet(short _x, short _y, WORD _object_type, short _object_index, WORD _param)
-	void Serialize(EMessageType _MessageType, char* _message)
+	void Serialize(EMessageType _MessageType, const char* _message)
 	{
 		
 		MessageType = _MessageType;
@@ -54,7 +57,7 @@ struct TPacket
 		PacketSize = static_cast<unsigned short>(_strToSend.size());
 	}
 	
-	TPacket Deserialize(char* _PacketData)
+	TPacket Deserialize(const char* _PacketData)
 	{
 		std::string _strTemp(_PacketData);
 		std::istringstream iss(_strTemp);
@@ -76,10 +79,11 @@ class INetworkEntity
 {
 public:
 	virtual bool Initialise() = 0; //Implicit in the intialization is the creation and binding of the socket
-	virtual bool SendData(char* _pcDataToSend) = 0;
-	virtual void ReceiveData(char* _pcBufferToReceiveData) = 0;
-	virtual void GetRemoteIPAddress(char *_pcSendersIP) = 0;
-	virtual unsigned short GetRemotePort() = 0;
+	virtual bool SendData(char* dataToSend, const sockaddr_in& address) = 0;
+	virtual void ReceiveData() = 0;
+	virtual void ProcessData(TPacket& packet) = 0;
+	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) = 0;
+	virtual unsigned short GetRemotePort(const TPacket& packet) = 0;
 	
 protected:
 	//Additional state variable to indicate whether a network entity is online or not
