@@ -20,7 +20,7 @@
 #define VALIDATE(a) if (!a) return (false)
 
 namespace {
-	std::string ToString(sockaddr_in _sockAddress)
+	inline std::string ToString(sockaddr_in _sockAddress)
 	{
 		//INET_ADDRSTRLEN - maximum length for IPv4 addresses
 		char _pcAddress[INET_ADDRSTRLEN];

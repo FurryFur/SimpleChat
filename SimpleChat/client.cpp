@@ -26,6 +26,7 @@
 #include "network.h"
 #include "networkentity.h"
 #include "socket.h"
+#include "utils.h"
 
 //This includes
 #include "client.h"
@@ -34,6 +35,7 @@
 CClient::CClient()
 	:m_recvBuffer(0)
 	, m_pClientSocket(0)
+	, m_connectionEstablished(false)
 {
 	ZeroMemory(&m_ServerSocketAddress, sizeof(m_ServerSocketAddress));
 
@@ -331,19 +333,26 @@ void CClient::ReceiveData()
 
 		if (_iNumOfBytesReceived < 0)
 		{
+			int errorCode = WSAGetLastError();
+
 			//Error in receiving data 
-			//std::cout << "recvfrom failed with error " << WSAGetLastError();
+			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
+			packet->Serialize(ERROR_RECEIVING, ToString(errorCode).c_str());
+			packet->FromAddress = fromAddress;
+			m_pWorkQueue->push(std::move(packet));
 		}
 		else if (_iNumOfBytesReceived == 0)
 		{
 			//The remote end has shutdown the connection
+			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
+			packet->Serialize(CONNECTION_CLOSE, "");
+			packet->FromAddress = fromAddress;
+			m_pWorkQueue->push(std::move(packet));
 		}
 		else
 		{
 			//There is valid data received.
 			//Put this packet data in the workQ
-			m_ServerSocketAddress = fromAddress;
-
 			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
 			packet->Deserialize(m_recvBuffer);
 			packet->FromAddress = fromAddress;
@@ -367,6 +376,8 @@ void CClient::ProcessData(TPacket& packetRecvd)
 		while (iss >> username) {
 			std::cout << username << std::endl;
 		}
+
+		m_connectionEstablished = true;
 		
 		break;
 	}
@@ -407,12 +418,38 @@ void CClient::ProcessData(TPacket& packetRecvd)
 		std::cout << ".";
 		std::this_thread::sleep_for(1s);
 		std::cout << ".";
+		break;
+	}
+	case ERROR_RECEIVING:
+	case CONNECTION_CLOSE:
+	{
+		m_bOnline = false;
+
+		if (m_connectionEstablished) {
+			std::cout << "Connection closed by server... Now terminating";
+		} 
+		else {
+			std::cout << "Server unavailable... Now terminating";
+		}
+
+		using namespace std::chrono_literals;
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+
+		break;
 	}
 	case USER_JOINED:
 	{
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
 
 		std::cout << "User Joined: " << packetRecvd.MessageContent << std::endl;
+		break;
 	}
 	default:
 		break;
