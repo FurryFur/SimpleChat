@@ -26,7 +26,10 @@ enum EMessageType : unsigned char
 	DATA,
 	KEEPALIVE,
 	COMMAND,
-	BROADCAST
+	BROADCAST,
+	ERROR_USERNAME_TAKEN,
+	ERROR_UNKNOWN_CLIENT,
+	USER_JOINED
 };
 
 struct TPacket 
@@ -63,6 +66,7 @@ struct TPacket
 		std::istringstream iss(_strTemp);
 		
 		iss >> this->MessageType;
+		iss.get(); // Remove whitespace
 		
 		//iss >> this->MessageContent;
 		std::string _tempMessageBuffer;
@@ -83,6 +87,7 @@ public:
 	virtual void ProcessData(TPacket& packet) = 0;
 	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) = 0;
 	virtual unsigned short GetRemotePort(const TPacket& packet) = 0;
+	virtual bool IsOnline();
 	
 protected:
 	//Additional state variable to indicate whether a network entity is online or not

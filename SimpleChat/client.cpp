@@ -18,6 +18,7 @@
 #include <iostream>
 #include <thread>
 #include <string>
+#include <chrono>
 
 //Local Includes
 #include "utils.h"
@@ -358,6 +359,31 @@ void CClient::ProcessData(TPacket& packetRecvd)
 	{
 	case HANDSHAKE:
 	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
+
+		std::cout << "Active Users:" << std::endl;
+		std::istringstream iss(packetRecvd.MessageContent);
+		std::string username;
+		while (iss >> username) {
+			std::cout << username << std::endl;
+		}
+		
+		break;
+	}
+	case ERROR_USERNAME_TAKEN:
+	{
+		m_bOnline = false;
+
+		using namespace std::chrono_literals;
+		std::cout << "That username is already taken... Now terminating";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
 		
 		break;
 	}
@@ -367,9 +393,29 @@ void CClient::ProcessData(TPacket& packetRecvd)
 		std::cout << "SERVER> " << packetRecvd.MessageContent << std::endl;
 		break;
 	}
+	case ERROR_UNKNOWN_CLIENT:
+	{
+		m_bOnline = false;
+
+		using namespace std::chrono_literals;
+		std::cout << "Tried to do something illegal. Bad Client!... Now terminating";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+	}
+	case USER_JOINED:
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
+
+		std::cout << "User Joined: " << packetRecvd.MessageContent << std::endl;
+	}
 	default:
 		break;
-
 	}
 }
 

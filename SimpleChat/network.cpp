@@ -95,10 +95,9 @@ CNetwork::ShutDown()
 	m_bOnline = false;
 }
 
-CNetwork&
-CNetwork::GetInstance()
+CNetwork& CNetwork::GetInstance()
 {
-	if (s_pNetwork == 0)
+	if (s_pNetwork == nullptr)
 	{
 		s_pNetwork = new CNetwork();
 	}

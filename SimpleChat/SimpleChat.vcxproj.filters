@@ -36,6 +36,9 @@
     <ClCompile Include="socket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="networkentity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="client.h">

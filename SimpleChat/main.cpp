@@ -34,16 +34,16 @@ int main()
 	unsigned char _ucChoice;
 	EEntityType _eNetworkEntityType;
 	CInputLineBuffer _InputBuffer(MAX_MESSAGE_LENGTH);
-	std::thread _ClientReceiveThread, _ServerReceiveThread;
+	std::thread clientReceiveThread, serverReceiveThread;
 
 	//Get the instance of the network
-	CNetwork& _rNetwork = CNetwork::GetInstance();
-	_rNetwork.StartUp();
+	CNetwork& rNetwork = CNetwork::GetInstance();
+	rNetwork.StartUp();
 
 	//A pointer to hold a client instance
 	CClient* client = nullptr;
 	//A pointer to hold a server instance
-	CServer* _pServer = nullptr;
+	CServer* server = nullptr;
 
 	// query, is this to be a client or a server?
 	_ucChoice = QueryOption("Do you want to run a client or server (C/S)?", "CS");
@@ -66,7 +66,7 @@ int main()
 		break;
 	}
 	}
-	if (!_rNetwork.GetInstance().Initialise(_eNetworkEntityType))
+	if (!rNetwork.Initialise(_eNetworkEntityType))
 	{
 		std::cout << "Unable to initialise the Network........Press any key to continue......";
 		_getch();
@@ -76,26 +76,22 @@ int main()
 	//Run receive on a separate thread so that it does not block the main client thread.
 	if (_eNetworkEntityType == CLIENT) //if network entity is a client
 	{
-
-		client = static_cast<CClient*>(_rNetwork.GetInstance().GetNetworkEntity());
-		_ClientReceiveThread = std::thread(&CClient::ReceiveData, client);
-
+		client = static_cast<CClient*>(rNetwork.GetNetworkEntity());
+		clientReceiveThread = std::thread(&CClient::ReceiveData, client);
 	}
 
 	//Run receive of server also on a separate thread 
 	else if (_eNetworkEntityType == SERVER) //if network entity is a server
 	{
-
-		_pServer = static_cast<CServer*>(_rNetwork.GetInstance().GetNetworkEntity());
-		_ServerReceiveThread = std::thread(&CServer::ReceiveData, _pServer);
-
+		server = static_cast<CServer*>(rNetwork.GetNetworkEntity());
+		serverReceiveThread = std::thread(&CServer::ReceiveData, server);
 	}
 
-	while (_rNetwork.IsOnline())
+	while (rNetwork.IsOnline())
 	{
 		if (_eNetworkEntityType == CLIENT) //if network entity is a client
 		{
-			client = static_cast<CClient*>(_rNetwork.GetInstance().GetNetworkEntity());
+			client = static_cast<CClient*>(rNetwork.GetNetworkEntity());
 
 			//Prepare for reading input from the user
 			_InputBuffer.PrintToScreenTop();
@@ -115,6 +111,7 @@ int main()
 				//Print To Screen Top
 				_InputBuffer.PrintToScreenTop();
 			}
+
 			if (client != nullptr)
 			{
 				//If the message queue is empty 
@@ -129,20 +126,27 @@ int main()
 					client->GetWorkQueue()->pop(packetRecvd);
 					client->ProcessData(*packetRecvd);
 				}
-			}
 
+				if (!client->IsOnline()) {
+					rNetwork.ShutDown();
+				}
+			}
 		}
 		else //if you are running a server instance
 		{
 
-			if (_pServer != nullptr)
+			if (server != nullptr)
 			{
-				if (!_pServer->GetWorkQueue()->empty())
+				if (!server->GetWorkQueue()->empty())
 				{
 					//Retrieve off a message from the queue and process it
 					std::unique_ptr<TPacket> packetRecvd;
-					_pServer->GetWorkQueue()->pop(packetRecvd);
-					_pServer->ProcessData(*packetRecvd);
+					server->GetWorkQueue()->pop(packetRecvd);
+					server->ProcessData(*packetRecvd);
+				}
+
+				if (!server->IsOnline()) {
+					rNetwork.ShutDown();
 				}
 			}
 		}
@@ -150,12 +154,15 @@ int main()
 
 	} //End of while network is Online
 
-	_ClientReceiveThread.join();
-	_ServerReceiveThread.join();
+	if (client)
+		clientReceiveThread.join();
+	if (server)
+		serverReceiveThread.join();
 
 	//Shut Down the Network
-	_rNetwork.ShutDown();
-	_rNetwork.DestroyInstance();
+	if (rNetwork.IsOnline())
+		rNetwork.ShutDown();
+	CNetwork::DestroyInstance();
 
 	return 0;
 }

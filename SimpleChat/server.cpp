@@ -14,6 +14,7 @@
 #include <thread>
 #include <chrono>
 #include <memory>
+#include <sstream>
 
 //Local Includes
 #include "utils.h"
@@ -33,8 +34,8 @@ CServer::CServer()
 
 CServer::~CServer()
 {
-	delete m_pConnectedClients;
-	m_pConnectedClients = 0;
+	delete m_clients;
+	m_clients = 0;
 
 	delete m_pServerSocket;
 	m_pServerSocket = 0;
@@ -66,16 +67,14 @@ bool CServer::Initialise()
 	}
 
 	//Qs 2: Create the map to hold details of all connected clients
-	m_pConnectedClients = new std::map < std::string, TClientDetails >() ;
+	m_clients = new std::map < std::string, TClientDetails >() ;
 
 	return true;
 }
 
-bool CServer::AddClient(const sockaddr_in& address, std::string _strClientName)
+bool CServer::AddClient(const sockaddr_in& address, std::string strClientName)
 {
-	//TO DO : Add the code to add a client to the map here...
-	
-	for (auto it = m_pConnectedClients->begin(); it != m_pConnectedClients->end(); ++it)
+	for (auto it = m_clients->begin(); it != m_clients->end(); ++it)
 	{
 		//Check to see that the client to be added does not already exist in the map, 
 		if(it->first == ToString(address))
@@ -83,18 +82,20 @@ bool CServer::AddClient(const sockaddr_in& address, std::string _strClientName)
 			return false;
 		}
 		//also check for the existence of the username
-		else if (it->second.m_strName == _strClientName)
+		else if (it->second.m_strName == strClientName)
 		{
 			return false;
 		}
 	}
-	//Add the client to the map.
-	TClientDetails _clientToAdd;
-	_clientToAdd.m_strName = _strClientName;
-	_clientToAdd.m_ClientAddress = address;
 
-	std::string _strAddress = ToString(address);
-	m_pConnectedClients->insert(std::pair < std::string, TClientDetails > (_strAddress, _clientToAdd));
+	//Add the client to the map.
+	TClientDetails clientToAdd;
+	clientToAdd.m_strName = strClientName;
+	clientToAdd.m_ClientAddress = address;
+
+	std::string strAddress = ToString(address);
+	m_clients->insert(std::pair < std::string, TClientDetails > (strAddress, clientToAdd));
+
 	return true;
 }
 
@@ -179,6 +180,22 @@ unsigned short CServer::GetRemotePort(const TPacket& packet)
 void CServer::ProcessData(TPacket& packetRecvd)
 {
 	TPacket packetToSend;
+
+	// TODO: Handle client disconnection, if this is not done then closing a connection
+	// will cause subsequent clients on the same computer to be unable to connect due to reusing
+	// the port of the old clients.
+
+	// Handle receiving non-handshake packet from a client that is not connected
+	std::string strFromAddress = ToString(packetRecvd.FromAddress);
+	bool clientExists = m_clients->find(strFromAddress) != m_clients->end();
+	if (!clientExists && packetRecvd.MessageType != HANDSHAKE && packetRecvd.MessageType != BROADCAST) {
+		// Send connection error back to client
+		packetToSend.Serialize(ERROR_UNKNOWN_CLIENT, "");
+		SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+		
+		return;
+	}
+	
 	switch (packetRecvd.MessageType)
 	{
 	case HANDSHAKE:
@@ -186,19 +203,50 @@ void CServer::ProcessData(TPacket& packetRecvd)
 		std::cout << "Server received a handshake message " << std::endl;
 		if (AddClient(packetRecvd.FromAddress, packetRecvd.MessageContent))
 		{
-			//Qs 3: To DO : Add the code to do a handshake here
+			std::string username = m_clients->at(ToString(packetRecvd.FromAddress)).m_strName;
+
+			// Serialize client list to send back with handshake
+			std::ostringstream oss;
+			auto it = m_clients->begin();
+			oss << it->second.m_strName;
+			for (std::advance(it, 1); it != m_clients->end(); ++it) {
+				oss << " ";
+				oss << it->second.m_strName;
+			}
+
+			// Send connection success message back to client
+			packetToSend.Serialize(HANDSHAKE, oss.str().c_str());
+			SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+
+			// Broadcast new client connection to all clients
+			for (auto& client : *m_clients) {
+				if (username == client.second.m_strName)
+					continue;
+
+				packetToSend = TPacket();
+				packetToSend.Serialize(USER_JOINED, username.c_str());
+				SendData(packetToSend.PacketData, client.second.m_ClientAddress);
+			}
+		}
+		else
+		{
+			// Send connection error back to client
+			packetToSend.Serialize(ERROR_USERNAME_TAKEN, "");
+			SendData(packetToSend.PacketData, packetRecvd.FromAddress);
 		}
 		break;
 	}
 	case DATA:
 	{
-		packetToSend.Serialize(DATA, packetRecvd.MessageContent);
-		SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+		std::string username = m_clients->at(ToString(packetRecvd.FromAddress)).m_strName;
 
-		//std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-		packetToSend.Serialize(DATA, "TEST MESSAGE");
-		SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+		// Echo message back to clients
+		// Broadcast new client connection to all clients
+		for (auto& client : *m_clients) {
+			packetToSend = TPacket();
+			packetToSend.Serialize(DATA, (username + ": " + std::string(packetRecvd.MessageContent)).c_str());
+			SendData(packetToSend.PacketData, client.second.m_ClientAddress);
+		}
 
 		break;
 	}

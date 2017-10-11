@@ -69,7 +69,7 @@ private:
 
 	//Qs 2 : Make a map to hold the details of all the client who have connected. 
 	//The structure maps client addresses to client details
-	std::map<std::string, TClientDetails>* m_pConnectedClients;
+	std::map<std::string, TClientDetails>* m_clients;
 
 	//A workQueue to distribute messages between the main thread and Receive thread.
 	AtomicQueue<std::unique_ptr<TPacket>>* m_pWorkQueue;
