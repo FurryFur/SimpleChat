@@ -510,23 +510,30 @@ void CClient::doHeartbeat()
 
 void CClient::checkHeartbeats()
 {
-	if (m_connectionEstablished) {
-		auto now = high_resolution_clock::now();
-		auto timeSinceLastServerHeartbeat = duration_cast<milliseconds>(now - m_lastHeartbeatRecvd);
-		if (timeSinceLastServerHeartbeat > m_heartbeatTimeout) {
-			m_bOnline = false;
+	static bool firstRun = true;
+	if (firstRun) {
+		m_lastHeartbeatRecvd = high_resolution_clock::now();
+		firstRun = false;
+	}
 
-			std::cout << "Connection closed by server... Now terminating";
+	auto now = high_resolution_clock::now();
+	auto timeSinceLastServerHeartbeat = duration_cast<milliseconds>(now - m_lastHeartbeatRecvd);
+	if (timeSinceLastServerHeartbeat > m_heartbeatTimeout) {
+		m_bOnline = false;
 
-			std::this_thread::sleep_for(1s);
-			std::cout << ".";
-			std::this_thread::sleep_for(1s);
-			std::cout << ".";
-			std::this_thread::sleep_for(1s);
-			std::cout << ".";
-			std::this_thread::sleep_for(1s);
-			std::cout << ".";
-		}
+		if (m_connectionEstablished)
+			std::cout << "Connection lost... Now terminating" << std::endl;
+		else
+			std::cout << "Connection failed... Now terminating" << std::endl;
+
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
+		std::this_thread::sleep_for(1s);
+		std::cout << ".";
 	}
 }
 
