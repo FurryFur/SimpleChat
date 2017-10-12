@@ -17,6 +17,7 @@
 
 #include <string>
 #include <sstream>
+#include <chrono>
 
 #include "socket.h"
 
@@ -27,11 +28,13 @@ enum EMessageType : unsigned char
 	KEEPALIVE,
 	COMMAND,
 	BROADCAST,
+	HEARTBEAT,
 	ERROR_USERNAME_TAKEN,
 	ERROR_UNKNOWN_CLIENT,
 	USER_JOINED,
 	ERROR_RECEIVING,
-	CONNECTION_CLOSE
+	CONNECTION_CLOSE,
+	USER_DISCONNECTED
 };
 
 struct TPacket 
@@ -83,6 +86,8 @@ struct TPacket
 class INetworkEntity
 {
 public:
+	INetworkEntity();
+
 	virtual bool Initialise() = 0; //Implicit in the intialization is the creation and binding of the socket
 	virtual bool SendData(char* dataToSend, const sockaddr_in& address) = 0;
 	virtual void ReceiveData() = 0;
@@ -90,9 +95,17 @@ public:
 	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) = 0;
 	virtual unsigned short GetRemotePort(const TPacket& packet) = 0;
 	virtual bool IsOnline();
+
+	// Send out heartbeat signals to all connections.
+	// Checks if any connections are dead (haven't received heartbeats)
+	// and updates the system.
+
+	virtual void checkHeartbeats() = 0;
+	virtual void setHeartbeatTimeout(std::chrono::milliseconds);
 	
 protected:
 	//Additional state variable to indicate whether a network entity is online or not
 	bool m_bOnline;
+	std::chrono::milliseconds m_heartbeatTimeout;
 };
 #endif 

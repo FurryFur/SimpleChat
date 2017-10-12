@@ -20,6 +20,7 @@
 #include <map>
 #include <time.h>
 #include <memory>
+#include <chrono>
 
 // Local Includes
 #include "networkentity.h"
@@ -36,11 +37,14 @@ class CSocket;
 //Structure to hold the details of all connected clients
 struct TClientDetails
 {
-	sockaddr_in m_ClientAddress;
+	sockaddr_in clientAddress;
 	//bool m_bIsActive;
-	std::string m_strName;
+	std::string username;
+	std::chrono::time_point<std::chrono::steady_clock> lastHeartbeat;
 	//time_t m_timeOfLastMessage;
 };
+
+using ClientItT = std::map<std::string, TClientDetails>::iterator;
 
 class CServer : public INetworkEntity
 {
@@ -57,6 +61,9 @@ public:
 	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) override;
 	virtual unsigned short GetRemotePort(const TPacket& packet) override;
 
+	virtual void checkHeartbeats() override;
+	ClientItT disconnectClient(ClientItT clientIt);
+
 	AtomicQueue<std::unique_ptr<TPacket>>* GetWorkQueue();
 	//Qs 2: Function to add clients to the map.
 private:
@@ -69,7 +76,7 @@ private:
 
 	//Qs 2 : Make a map to hold the details of all the client who have connected. 
 	//The structure maps client addresses to client details
-	std::map<std::string, TClientDetails>* m_clients;
+	std::map<std::string, TClientDetails>* m_connectedClients;
 
 	//A workQueue to distribute messages between the main thread and Receive thread.
 	AtomicQueue<std::unique_ptr<TPacket>>* m_pWorkQueue;

@@ -31,11 +31,14 @@
 //This includes
 #include "client.h"
 
+using namespace std::chrono_literals;
+using namespace std::chrono;
 
 CClient::CClient()
 	:m_recvBuffer(0)
 	, m_pClientSocket(0)
 	, m_connectionEstablished(false)
+	, m_heartbeatInterval{ 100ms }
 {
 	ZeroMemory(&m_ServerSocketAddress, sizeof(m_ServerSocketAddress));
 
@@ -278,6 +281,16 @@ void CClient::ReceiveBroadcastMessages(char* _pcBufferToReceiveData)
 	}//End of while loop
 }
 
+void CClient::recordHeartbeat()
+{
+	m_lastHeartbeatRecvd = std::chrono::high_resolution_clock::now();
+}
+
+void CClient::setHeartbeatInterval(std::chrono::milliseconds interval)
+{
+	m_heartbeatInterval = interval;
+}
+
 bool CClient::SendData(char* dataToSend, const sockaddr_in& address)
 {
 	int _iBytesToSend = (int)strlen(dataToSend) + 1;
@@ -364,12 +377,12 @@ void CClient::ReceiveData()
 
 void CClient::ProcessData(TPacket& packetRecvd)
 {
+	recordHeartbeat();
+
 	switch (packetRecvd.MessageType)
 	{
 	case HANDSHAKE:
 	{
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
-
 		std::cout << "Active Users:" << std::endl;
 		std::istringstream iss(packetRecvd.MessageContent);
 		std::string username;
@@ -446,9 +459,12 @@ void CClient::ProcessData(TPacket& packetRecvd)
 	}
 	case USER_JOINED:
 	{
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
-
 		std::cout << "User Joined: " << packetRecvd.MessageContent << std::endl;
+		break;
+	}
+	case USER_DISCONNECTED:
+	{
+		std::cout << packetRecvd.MessageContent << " disconnected." << std::endl;
 		break;
 	}
 	default:
@@ -476,6 +492,42 @@ unsigned short CClient::GetRemotePort(const TPacket& packet)
 unsigned short CClient::GetRemotePort()
 {
 	return ntohs(m_ServerSocketAddress.sin_port);
+}
+
+void CClient::doHeartbeat()
+{
+	// Sent a heartbeat at regular intervals
+	auto now = high_resolution_clock::now();
+	auto dHeartbeat = duration_cast<milliseconds>(now - m_lastHeartbeatSent);
+	if (dHeartbeat >= m_heartbeatInterval) {
+		TPacket packet;
+		packet.Serialize(HEARTBEAT, "");
+		SendData(packet.PacketData, m_ServerSocketAddress);
+
+		m_lastHeartbeatSent = now;
+	}
+}
+
+void CClient::checkHeartbeats()
+{
+	if (m_connectionEstablished) {
+		auto now = high_resolution_clock::now();
+		auto timeSinceLastServerHeartbeat = duration_cast<milliseconds>(now - m_lastHeartbeatRecvd);
+		if (timeSinceLastServerHeartbeat > m_heartbeatTimeout) {
+			m_bOnline = false;
+
+			std::cout << "Connection closed by server... Now terminating";
+
+			std::this_thread::sleep_for(1s);
+			std::cout << ".";
+			std::this_thread::sleep_for(1s);
+			std::cout << ".";
+			std::this_thread::sleep_for(1s);
+			std::cout << ".";
+			std::this_thread::sleep_for(1s);
+			std::cout << ".";
+		}
+	}
 }
 
 void CClient::GetPacketData(char* _pcLocalBuffer)

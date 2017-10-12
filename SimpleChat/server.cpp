@@ -26,6 +26,8 @@
 //Local Includes
 #include "server.h"
 
+using namespace std::chrono;
+
 CServer::CServer()
 	:m_recvBuffer(0),
 	m_pServerSocket(0)
@@ -34,8 +36,8 @@ CServer::CServer()
 
 CServer::~CServer()
 {
-	delete m_clients;
-	m_clients = 0;
+	delete m_connectedClients;
+	m_connectedClients = 0;
 
 	delete m_pServerSocket;
 	m_pServerSocket = 0;
@@ -67,14 +69,14 @@ bool CServer::Initialise()
 	}
 
 	//Qs 2: Create the map to hold details of all connected clients
-	m_clients = new std::map < std::string, TClientDetails >() ;
+	m_connectedClients = new std::map < std::string, TClientDetails >() ;
 
 	return true;
 }
 
 bool CServer::AddClient(const sockaddr_in& address, std::string strClientName)
 {
-	for (auto it = m_clients->begin(); it != m_clients->end(); ++it)
+	for (auto it = m_connectedClients->begin(); it != m_connectedClients->end(); ++it)
 	{
 		//Check to see that the client to be added does not already exist in the map, 
 		if(it->first == ToString(address))
@@ -82,7 +84,7 @@ bool CServer::AddClient(const sockaddr_in& address, std::string strClientName)
 			return false;
 		}
 		//also check for the existence of the username
-		else if (it->second.m_strName == strClientName)
+		else if (it->second.username == strClientName)
 		{
 			return false;
 		}
@@ -90,11 +92,12 @@ bool CServer::AddClient(const sockaddr_in& address, std::string strClientName)
 
 	//Add the client to the map.
 	TClientDetails clientToAdd;
-	clientToAdd.m_strName = strClientName;
-	clientToAdd.m_ClientAddress = address;
+	clientToAdd.username = strClientName;
+	clientToAdd.clientAddress = address;
+	clientToAdd.lastHeartbeat = high_resolution_clock::now();
 
 	std::string strAddress = ToString(address);
-	m_clients->insert(std::pair < std::string, TClientDetails > (strAddress, clientToAdd));
+	m_connectedClients->insert(std::pair < std::string, TClientDetails > (strAddress, clientToAdd));
 
 	return true;
 }
@@ -114,7 +117,10 @@ bool CServer::SendData(char* dataToSend, const sockaddr_in& address)
 	//iNumBytes;
 	if (_iBytesToSend != iNumBytes)
 	{
-		std::cout << "There was an error in sending data from client to server" << std::endl;
+		ClientItT clientIt = m_connectedClients->find(ToString(address));
+		std::cout << "There was an error in sending data from server to client" << std::endl;
+		std::cout << "Dropping user: " << clientIt->second.username << std::endl;
+		disconnectClient(clientIt);
 		return false;
 	}
 	return true;
@@ -140,8 +146,8 @@ void CServer::ReceiveData()
 		);
 		if (_iNumOfBytesReceived < 0)
 		{
-			int _iError = WSAGetLastError();
-			ErrorRoutines::PrintWSAErrorInfo(_iError);
+			//int _iError = WSAGetLastError();
+			//ErrorRoutines::PrintWSAErrorInfo(_iError);
 			//return false;
 		}
 		else
@@ -177,17 +183,54 @@ unsigned short CServer::GetRemotePort(const TPacket& packet)
 	return ntohs(packet.FromAddress.sin_port);
 }
 
+void CServer::checkHeartbeats()
+{
+	auto it = m_connectedClients->begin();
+	while (it != m_connectedClients->end()) {
+		// Check heartbeat has been received from client recently
+		// If it hasn't, then drop the client from the server
+		TClientDetails& client = it->second;
+		auto now = high_resolution_clock::now();
+		auto lastHeartbeat = client.lastHeartbeat;
+		auto timeSinceLastHeartbeat = duration_cast<milliseconds>(now - lastHeartbeat);
+		if (timeSinceLastHeartbeat > m_heartbeatTimeout)
+			it = disconnectClient(it);
+		else
+			++it;
+	}
+}
+
+ClientItT CServer::disconnectClient(ClientItT clientIt)
+{
+	clientIt = m_connectedClients->find(clientIt->first);
+	if (clientIt != m_connectedClients->end()) {
+		auto& username = clientIt->second.username;
+
+		TPacket packetToSend;
+		packetToSend.Serialize(CONNECTION_CLOSE, "");
+		SendData(packetToSend.PacketData, clientIt->second.clientAddress);
+
+		for (auto& addrClientPair : *m_connectedClients) {
+			auto& address = addrClientPair.second.clientAddress;
+			packetToSend.Serialize(USER_DISCONNECTED, username.c_str());
+			SendData(packetToSend.PacketData, address);
+		}
+
+		std::cout << username << " disconnected." << std::endl;
+
+		clientIt = m_connectedClients->erase(clientIt);
+	}
+
+	return clientIt;
+}
+
 void CServer::ProcessData(TPacket& packetRecvd)
 {
 	TPacket packetToSend;
 
-	// TODO: Handle client disconnection, if this is not done then closing a connection
-	// will cause subsequent clients on the same computer to be unable to connect due to reusing
-	// the port of the old clients.
-
 	// Handle receiving non-handshake packet from a client that is not connected
 	std::string strFromAddress = ToString(packetRecvd.FromAddress);
-	bool clientExists = m_clients->find(strFromAddress) != m_clients->end();
+	bool clientExists = m_connectedClients->find(strFromAddress) != m_connectedClients->end();
 	if (!clientExists && packetRecvd.MessageType != HANDSHAKE && packetRecvd.MessageType != BROADCAST) {
 		// Send connection error back to client
 		packetToSend.Serialize(ERROR_UNKNOWN_CLIENT, "");
@@ -195,6 +238,11 @@ void CServer::ProcessData(TPacket& packetRecvd)
 		
 		return;
 	}
+
+	// Record heartbeat signal
+	auto clientIt = m_connectedClients->find(ToString(packetRecvd.FromAddress));
+	if (clientIt != m_connectedClients->end())
+		clientIt->second.lastHeartbeat = high_resolution_clock::now();
 	
 	switch (packetRecvd.MessageType)
 	{
@@ -203,15 +251,15 @@ void CServer::ProcessData(TPacket& packetRecvd)
 		std::cout << "Server received a handshake message " << std::endl;
 		if (AddClient(packetRecvd.FromAddress, packetRecvd.MessageContent))
 		{
-			std::string username = m_clients->at(ToString(packetRecvd.FromAddress)).m_strName;
+			std::string username = m_connectedClients->at(ToString(packetRecvd.FromAddress)).username;
 
 			// Serialize client list to send back with handshake
 			std::ostringstream oss;
-			auto it = m_clients->begin();
-			oss << it->second.m_strName;
-			for (std::advance(it, 1); it != m_clients->end(); ++it) {
+			auto it = m_connectedClients->begin();
+			oss << it->second.username;
+			for (std::advance(it, 1); it != m_connectedClients->end(); ++it) {
 				oss << " ";
-				oss << it->second.m_strName;
+				oss << it->second.username;
 			}
 
 			// Send connection success message back to client
@@ -219,13 +267,13 @@ void CServer::ProcessData(TPacket& packetRecvd)
 			SendData(packetToSend.PacketData, packetRecvd.FromAddress);
 
 			// Broadcast new client connection to all clients
-			for (auto& client : *m_clients) {
-				if (username == client.second.m_strName)
+			for (auto& client : *m_connectedClients) {
+				if (username == client.second.username)
 					continue;
 
 				packetToSend = TPacket();
 				packetToSend.Serialize(USER_JOINED, username.c_str());
-				SendData(packetToSend.PacketData, client.second.m_ClientAddress);
+				SendData(packetToSend.PacketData, client.second.clientAddress);
 			}
 		}
 		else
@@ -238,14 +286,14 @@ void CServer::ProcessData(TPacket& packetRecvd)
 	}
 	case DATA:
 	{
-		std::string username = m_clients->at(ToString(packetRecvd.FromAddress)).m_strName;
+		std::string username = m_connectedClients->at(ToString(packetRecvd.FromAddress)).username;
 
 		// Echo message back to clients
 		// Broadcast new client connection to all clients
-		for (auto& client : *m_clients) {
+		for (auto& client : *m_connectedClients) {
 			packetToSend = TPacket();
 			packetToSend.Serialize(DATA, (username + ": " + std::string(packetRecvd.MessageContent)).c_str());
-			SendData(packetToSend.PacketData, client.second.m_ClientAddress);
+			SendData(packetToSend.PacketData, client.second.clientAddress);
 		}
 
 		break;
@@ -257,6 +305,16 @@ void CServer::ProcessData(TPacket& packetRecvd)
 		//Just send out a packet to the back to the client again which will have the server's IP and port in it's sender fields
 		packetToSend.Serialize(BROADCAST, "I'm here!");
 		SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+		break;
+	}
+
+	case HEARTBEAT:
+	{
+		// Ping back heartbeat to client
+		TPacket packet;
+		packet.Serialize(HEARTBEAT, "");
+		SendData(packet.PacketData, packetRecvd.FromAddress);
+
 		break;
 	}
 
