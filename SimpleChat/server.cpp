@@ -289,6 +289,7 @@ void CServer::ProcessData(TPacket& packetRecvd)
 			packetToSend.Serialize(ERROR_USERNAME_TAKEN, "");
 			SendData(packetToSend.PacketData, packetRecvd.FromAddress);
 		}
+
 		break;
 	}
 	case DATA:
@@ -305,7 +306,26 @@ void CServer::ProcessData(TPacket& packetRecvd)
 
 		break;
 	}
+	case COMMAND:
+	{
+		if (strcmp(packetRecvd.MessageContent, "q") == 0) {
+			// Disconnect the client on quit
+			disconnectClient(clientIt);
+		} else if (strcmp(packetRecvd.MessageContent, "?") == 0) {
+			// Send back command list to client
+			std::ostringstream oss;
+			oss << "? - See available commands" << std::endl;
+			oss << "q - Quit the chat server" << std::endl;
 
+			packetToSend.Serialize(COMMAND_DISPLAY_COMMANDS, oss.str().c_str());
+			SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+		} else {
+			packetToSend.Serialize(COMMAND_NOT_RECOGNIZED, "");
+			SendData(packetToSend.PacketData, packetRecvd.FromAddress);
+		}
+
+		break;
+	}
 	case BROADCAST:
 	{
 		std::cout << "Received a broadcast packet" << std::endl;

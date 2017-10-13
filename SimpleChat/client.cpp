@@ -439,6 +439,23 @@ void CClient::ProcessData(TPacket& packetRecvd)
 		std::cout << packetRecvd.MessageContent << " disconnected." << std::endl;
 		break;
 	}
+	case COMMAND_DISPLAY_COMMANDS:
+	{
+		std::cout << "Command List:" << std::endl;
+		std::istringstream iss(packetRecvd.MessageContent);
+		std::string commandDesc;
+		while (std::getline(iss, commandDesc)) {
+			std::cout << commandDesc << std::endl;
+		}
+
+		break;
+	}
+	case COMMAND_NOT_RECOGNIZED:
+	{
+		std::cout << "Unknown Command" << std::endl;
+
+		break;
+	}
 	default:
 		break;
 	}

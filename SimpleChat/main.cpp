@@ -102,10 +102,26 @@ int main()
 				// we completed a message, lets send it:
 				int _iMessageSize = static_cast<int>(strlen(_InputBuffer.GetString()));
 
+				// Check if user entered a command
+				std::string message = _InputBuffer.GetString();
+				EMessageType msgType = DATA;
+				if (_iMessageSize >= 1 && _InputBuffer.GetString()[0] == '!') {
+					message = message.substr(1);
+					msgType = COMMAND;
+				}
+
+				// Special behavior for some commands
+				if (_iMessageSize >= 2 && _InputBuffer.GetString()[0] == '!' && _InputBuffer.GetString()[1] ==  '!') {
+					msgType = DATA;
+				} else if (_iMessageSize >= 2 && _InputBuffer.GetString()[0] == '!' && _InputBuffer.GetString()[1] == 'q') {
+					client->terminateClient("Quiting");
+				}
+
 				//Put the message into a packet structure
 				TPacket _packet;
-				_packet.Serialize(DATA, const_cast<char*>(_InputBuffer.GetString())); //Hardcoded username; change to name as taken in via user input.
+				_packet.Serialize(msgType, message.c_str());
 				client->SendData(_packet.PacketData);
+
 				//Clear the Input Buffer
 				_InputBuffer.ClearString();
 				//Print To Screen Top

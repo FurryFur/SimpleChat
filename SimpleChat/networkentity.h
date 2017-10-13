@@ -35,7 +35,9 @@ enum EMessageType : unsigned char
 	USER_JOINED,
 	ERROR_RECEIVING,
 	CONNECTION_CLOSE,
-	USER_DISCONNECTED
+	USER_DISCONNECTED,
+	COMMAND_DISPLAY_COMMANDS,
+	COMMAND_NOT_RECOGNIZED
 };
 
 struct TPacket 
@@ -76,7 +78,7 @@ struct TPacket
 		
 		//iss >> this->MessageContent;
 		std::string _tempMessageBuffer;
-		getline(iss, _tempMessageBuffer);
+		getline(iss, _tempMessageBuffer, '\0');
 		strcpy_s(MessageContent, _tempMessageBuffer.length() + 1, _tempMessageBuffer.c_str());
 		
 		return *this;
