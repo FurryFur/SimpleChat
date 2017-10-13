@@ -115,7 +115,7 @@ int main()
 			if (client != nullptr)
 			{
 				client->doHeartbeat();
-				client->checkHeartbeats();
+				client->checkHeartbeat();
 				//If the message queue is empty 
 				if (client->GetWorkQueue()->empty())
 				{
@@ -139,7 +139,7 @@ int main()
 
 			if (server != nullptr)
 			{
-				server->checkHeartbeats();
+				server->checkHeartbeat();
 
 				if (!server->GetWorkQueue()->empty())
 				{

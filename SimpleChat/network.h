@@ -64,7 +64,7 @@ private:
 protected:
 	//A network has a network entity
 	INetworkEntity* m_pNetworkEntity;
-	bool m_bOnline;
+	bool m_isOnline;
 
 	// Singleton Instance
 	static CNetwork* s_pNetwork;

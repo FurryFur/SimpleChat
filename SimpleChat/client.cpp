@@ -37,8 +37,11 @@ using namespace std::chrono;
 CClient::CClient()
 	:m_recvBuffer(0)
 	, m_pClientSocket(0)
-	, m_connectionEstablished(false)
-	, m_heartbeatInterval{ 100ms }
+	, m_connectionEstablished{ false }
+	, m_heartbeatInterval{ 1000ms }
+	, m_reconnecting{ false }
+	, m_reconnectCount{ 0 }
+	, m_maxReconnectAttempts{ 100 }
 {
 	ZeroMemory(&m_ServerSocketAddress, sizeof(m_ServerSocketAddress));
 
@@ -81,7 +84,7 @@ bool CClient::Initialise()
 	unsigned int _uiServerIndex;
 
 	//Local variable to hold client's name
-	char _cUserName[50];
+	char userName[50];
 	ZeroMemory(&m_cUserName, 50);
 
 	//Zero out the memory for all the member variables.
@@ -102,7 +105,7 @@ bool CClient::Initialise()
 	}
 
 	//Set the client's online status to true
-	m_bOnline = true;
+	m_isOnline = true;
 
 	//Use a boolean flag to determine if a valid server has been chosen by the client or not
 	bool _bServerChosen = false;
@@ -193,11 +196,13 @@ bool CClient::Initialise()
 	
 	do{
 		std::cout << "Please enter a username : ";
-		gets_s(_cUserName);
-	} while (_cUserName[0] == 0);
+		gets_s(userName);
+	} while (userName[0] == 0);
+
+	m_username = userName;
 
 	TPacket _packet;
-	_packet.Serialize(HANDSHAKE, _cUserName); 
+	_packet.Serialize(HANDSHAKE, userName); 
 	SendData(_packet.PacketData, m_ServerSocketAddress);
 	return true;
 }
@@ -331,7 +336,7 @@ void CClient::ReceiveData()
 	//For debugging purpose only, convert the Address structure to a string.
 	char _pcAddress[50];
 	ZeroMemory(&_pcAddress, 50);
-	while(m_bOnline)
+	while(m_isOnline)
 	{
 		// pull off the packet(s) using recvfrom()
 		_iNumOfBytesReceived = recvfrom(			// pulls a packet from a single source...
@@ -383,31 +388,20 @@ void CClient::ProcessData(TPacket& packetRecvd)
 	{
 	case HANDSHAKE:
 	{
-		std::cout << "Active Users:" << std::endl;
-		std::istringstream iss(packetRecvd.MessageContent);
-		std::string username;
-		while (iss >> username) {
-			std::cout << username << std::endl;
+		if (m_reconnecting) {
+			m_reconnecting = false;
+			m_reconnectCount = 0;
+			std::cout << "connection re-established" << std::endl;
+		} else {
+			std::cout << "Active Users:" << std::endl;
+			std::istringstream iss(packetRecvd.MessageContent);
+			std::string username;
+			while (iss >> username) {
+				std::cout << username << std::endl;
+			}
 		}
 
 		m_connectionEstablished = true;
-		
-		break;
-	}
-	case ERROR_USERNAME_TAKEN:
-	{
-		m_bOnline = false;
-
-		using namespace std::chrono_literals;
-		std::cout << "That username is already taken... Now terminating";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
 		
 		break;
 	}
@@ -417,43 +411,21 @@ void CClient::ProcessData(TPacket& packetRecvd)
 		std::cout << "SERVER> " << packetRecvd.MessageContent << std::endl;
 		break;
 	}
-	case ERROR_UNKNOWN_CLIENT:
+	case ERROR_USERNAME_TAKEN:
 	{
-		m_bOnline = false;
+		terminateClient("That username is already taken... Now terminating");
 
-		using namespace std::chrono_literals;
-		std::cout << "Tried to do something illegal. Bad Client!... Now terminating";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
 		break;
 	}
 	case ERROR_RECEIVING:
 	case CONNECTION_CLOSE:
+	case HEARTBEAT_TIMEOUT:
+	case ERROR_UNKNOWN_CLIENT:
 	{
-		m_bOnline = false;
-
-		if (m_connectionEstablished) {
-			std::cout << "Connection closed by server... Now terminating";
-		} 
-		else {
-			std::cout << "Server unavailable... Now terminating";
-		}
-
-		using namespace std::chrono_literals;
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
+		if (m_reconnectCount < m_maxReconnectAttempts)
+			attemptReconnect();
+		else
+			terminateClient("Server unavailable... Now terminating");
 
 		break;
 	}
@@ -494,6 +466,20 @@ unsigned short CClient::GetRemotePort()
 	return ntohs(m_ServerSocketAddress.sin_port);
 }
 
+void CClient::attemptReconnect()
+{
+	std::cout << "Connection lost. Attempting reconnect..." << std::endl;
+	++m_reconnectCount;
+	
+	m_reconnecting = true;
+	// Fake heartbeat to prevent heartbeat check from triggering multiple reconnect messages
+	m_lastHeartbeatRecvd = high_resolution_clock::now();
+	
+	TPacket _packet;
+	_packet.Serialize(HANDSHAKE, m_username.c_str());
+	SendData(_packet.PacketData, m_ServerSocketAddress);
+}
+
 void CClient::doHeartbeat()
 {
 	// Sent a heartbeat at regular intervals
@@ -508,7 +494,19 @@ void CClient::doHeartbeat()
 	}
 }
 
-void CClient::checkHeartbeats()
+void CClient::terminateClient(const std::string& msg)
+{
+	m_isOnline = false;
+
+	std::cout << msg;
+	for (size_t i = 0; i < 3; ++i) {
+		std::this_thread::sleep_for(500ms);
+		std::cout << ".";
+		std::this_thread::sleep_for(500ms);
+	}
+}
+
+void CClient::checkHeartbeat()
 {
 	static bool firstRun = true;
 	if (firstRun) {
@@ -519,21 +517,14 @@ void CClient::checkHeartbeats()
 	auto now = high_resolution_clock::now();
 	auto timeSinceLastServerHeartbeat = duration_cast<milliseconds>(now - m_lastHeartbeatRecvd);
 	if (timeSinceLastServerHeartbeat > m_heartbeatTimeout) {
-		m_bOnline = false;
-
-		if (m_connectionEstablished)
-			std::cout << "Connection lost... Now terminating" << std::endl;
-		else
-			std::cout << "Connection failed... Now terminating" << std::endl;
-
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
-		std::this_thread::sleep_for(1s);
-		std::cout << ".";
+		if (m_connectionEstablished) {
+			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
+			packet->Serialize(HEARTBEAT_TIMEOUT, "");
+			m_pWorkQueue->push(std::move(packet));
+		}
+		else {
+			terminateClient("Connection failed... Now terminating");
+		}
 	}
 }
 

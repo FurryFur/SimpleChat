@@ -50,9 +50,11 @@ public:
 	void GetRemoteIPAddress(char* sendersIP);
 	virtual unsigned short GetRemotePort(const TPacket& packet) override;
 	unsigned short GetRemotePort();
-	void checkHeartbeats() override;
+	virtual void checkHeartbeat() override;
 
+	void attemptReconnect();
 	void doHeartbeat();
+	void terminateClient(const std::string& msg);
 
 	void GetPacketData(char* _pcLocalBuffer);
 	AtomicQueue<std::unique_ptr<TPacket>>* GetWorkQueue();
@@ -81,7 +83,10 @@ private:
 	std::vector<sockaddr_in> m_vecServerAddr;
 	bool m_bDoBroadcast;
 	bool m_connectionEstablished;
-
+	std::string m_username;
+	bool m_reconnecting;
+	size_t m_reconnectCount;
+	size_t m_maxReconnectAttempts;
 	void recordHeartbeat();
 	void setHeartbeatInterval(std::chrono::milliseconds);
 	std::chrono::time_point<std::chrono::steady_clock> m_lastHeartbeatRecvd;

@@ -29,6 +29,7 @@ enum EMessageType : unsigned char
 	COMMAND,
 	BROADCAST,
 	HEARTBEAT,
+	HEARTBEAT_TIMEOUT,
 	ERROR_USERNAME_TAKEN,
 	ERROR_UNKNOWN_CLIENT,
 	USER_JOINED,
@@ -100,12 +101,12 @@ public:
 	// Checks if any connections are dead (haven't received heartbeats)
 	// and updates the system.
 
-	virtual void checkHeartbeats() = 0;
+	virtual void checkHeartbeat() = 0;
 	virtual void setHeartbeatTimeout(std::chrono::milliseconds);
 	
 protected:
 	//Additional state variable to indicate whether a network entity is online or not
-	bool m_bOnline;
+	bool m_isOnline;
 	std::chrono::milliseconds m_heartbeatTimeout;
 };
 #endif 

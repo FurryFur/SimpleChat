@@ -61,13 +61,13 @@ public:
 	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) override;
 	virtual unsigned short GetRemotePort(const TPacket& packet) override;
 
-	virtual void checkHeartbeats() override;
+	virtual void checkHeartbeat() override;
 	ClientItT disconnectClient(ClientItT clientIt);
 
 	AtomicQueue<std::unique_ptr<TPacket>>* GetWorkQueue();
 	//Qs 2: Function to add clients to the map.
 private:
-	bool AddClient(const sockaddr_in& address, std::string _strClientName);
+	bool AddClient(const sockaddr_in& address, const std::string& _strClientName);
 
 	//A Buffer to contain all packet data for the server
 	char* m_recvBuffer;

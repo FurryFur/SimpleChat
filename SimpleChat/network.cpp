@@ -32,7 +32,7 @@ CNetwork* CNetwork::s_pNetwork = 0;
 
 CNetwork::CNetwork()
 	: m_pNetworkEntity(0)
-	, m_bOnline(false)
+	, m_isOnline(false)
 {
 
 }
@@ -80,7 +80,7 @@ CNetwork::StartUp()
 		_iError = WSAGetLastError();
 		//Diagnostic error messages to be added!!
 	}
-	m_bOnline = true;
+	m_isOnline = true;
 }
 
 void
@@ -92,7 +92,7 @@ CNetwork::ShutDown()
 		_iError = WSAGetLastError();
 		//Diagnostic error messages to be added!!
 	}
-	m_bOnline = false;
+	m_isOnline = false;
 }
 
 CNetwork& CNetwork::GetInstance()
@@ -120,7 +120,7 @@ INetworkEntity* CNetwork::GetNetworkEntity()
 
 bool CNetwork::IsOnline()
 {
-	return m_bOnline;
+	return m_isOnline;
 }
 
 void ErrorRoutines::PrintWSAErrorInfo(int iError)

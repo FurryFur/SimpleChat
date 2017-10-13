@@ -74,7 +74,7 @@ bool CServer::Initialise()
 	return true;
 }
 
-bool CServer::AddClient(const sockaddr_in& address, std::string strClientName)
+bool CServer::AddClient(const sockaddr_in& address, const std::string& strClientName)
 {
 	for (auto it = m_connectedClients->begin(); it != m_connectedClients->end(); ++it)
 	{
@@ -183,7 +183,7 @@ unsigned short CServer::GetRemotePort(const TPacket& packet)
 	return ntohs(packet.FromAddress.sin_port);
 }
 
-void CServer::checkHeartbeats()
+void CServer::checkHeartbeat()
 {
 	auto it = m_connectedClients->begin();
 	while (it != m_connectedClients->end()) {
@@ -233,6 +233,7 @@ void CServer::ProcessData(TPacket& packetRecvd)
 	bool clientExists = m_connectedClients->find(strFromAddress) != m_connectedClients->end();
 	if (!clientExists && packetRecvd.MessageType != HANDSHAKE && packetRecvd.MessageType != BROADCAST) {
 		// Send connection error back to client
+		std::cout << "Received packet from un-connected client" << std::endl;
 		packetToSend.Serialize(ERROR_UNKNOWN_CLIENT, "");
 		SendData(packetToSend.PacketData, packetRecvd.FromAddress);
 		
@@ -248,7 +249,13 @@ void CServer::ProcessData(TPacket& packetRecvd)
 	{
 	case HANDSHAKE:
 	{
+		// Handle reconnecting client that still exists in the map
 		std::cout << "Server received a handshake message " << std::endl;
+		if (clientIt != m_connectedClients->end() && packetRecvd.MessageContent == clientIt->second.username) {
+			std::cout << clientIt->second.username << " reconnected" << std::endl;
+			return;
+		}
+
 		if (AddClient(packetRecvd.FromAddress, packetRecvd.MessageContent))
 		{
 			std::string username = m_connectedClients->at(ToString(packetRecvd.FromAddress)).username;

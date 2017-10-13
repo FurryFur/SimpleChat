@@ -4,7 +4,7 @@ using namespace std::chrono_literals;
 
 bool INetworkEntity::IsOnline()
 {
-	return m_bOnline;
+	return m_isOnline;
 }
 
 void INetworkEntity::setHeartbeatTimeout(std::chrono::milliseconds timeout)
