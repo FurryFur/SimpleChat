@@ -283,6 +283,12 @@ void CClient::ReceiveBroadcastMessages(char* _pcBufferToReceiveData)
 			m_vecServerAddr.push_back(m_ServerSocketAddress);
 		}
 	}//End of while loop
+
+	// Turn off timeout on socket
+	timeValue.tv_sec = 0;
+	timeValue.tv_usec = 0;
+	setsockopt(m_pClientSocket->GetSocketHandle(), SOL_SOCKET, SO_RCVTIMEO,
+		(char*)&timeValue, sizeof(timeValue));
 }
 
 void CClient::recordHeartbeat()
@@ -351,7 +357,7 @@ void CClient::ReceiveData()
 		if (_iNumOfBytesReceived < 0)
 		{
 			int errorCode = WSAGetLastError();
-
+			
 			//Error in receiving data 
 			std::unique_ptr<TPacket> packet = std::make_unique<TPacket>();
 			packet->Serialize(ERROR_RECEIVING, ToString(errorCode).c_str());
@@ -421,6 +427,9 @@ void CClient::ProcessData(TPacket& packetRecvd)
 	case HEARTBEAT_TIMEOUT:
 	case ERROR_UNKNOWN_CLIENT:
 	{
+		if (packetRecvd.MessageType == ERROR_RECEIVING)
+			std::cout << "Received error while receiving data: " << packetRecvd.MessageContent << std::endl;
+
 		if (m_reconnectCount < m_maxReconnectAttempts)
 			attemptReconnect();
 		else
