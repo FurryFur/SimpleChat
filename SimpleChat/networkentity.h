@@ -4,12 +4,11 @@
 // Auckland
 // New Zealand
 //
-// (c) 2015 Media Design School
+// (c) 2017 Media Design School
 //
-// File Name	: 
-// Description	: 
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// Description  : Base class for a network entity (server or client)
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 #ifndef __NETWORKENTITY_H__
@@ -91,19 +90,38 @@ class INetworkEntity
 public:
 	INetworkEntity();
 
+	// Initialises the network entity.
 	virtual bool Initialise() = 0; //Implicit in the intialization is the creation and binding of the socket
+
+	// Sends a null terminated message to the specified address using UDP.
 	virtual bool SendData(char* dataToSend, const sockaddr_in& address) = 0;
+
+	// Receive loop for receiving data from the network.
+	// Intended to be run in a separate thread.
+	// This function stores incoming packets in a queue for later processing.
 	virtual void ReceiveData() = 0;
+
+	// Processes the supplied packet.
 	virtual void ProcessData(TPacket& packet) = 0;
+
+	// Gets the remote address of the sender from a received packet.
+	// Stores the address in the 'sendersIP' output variable.
 	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) = 0;
+
+	// Gets the remote port of the sender from a received packet.
 	virtual unsigned short GetRemotePort(const TPacket& packet) = 0;
+
+	// Returns whether the entity is receiving data.
 	virtual bool IsOnline();
 
-	// Send out heartbeat signals to all connections.
-	// Checks if any connections are dead (haven't received heartbeats)
-	// and updates the system.
-
+	// Checks the heartbeat signals from connected entities.
+	// If no heartbeats are received within a period then the
+	// entity should be assumed to be disconnected.
 	virtual void checkHeartbeat() = 0;
+
+	// Sets the interval for which an entity will be considered
+	// disconect if it has not received a heartbeat within that
+	// time.
 	virtual void setHeartbeatTimeout(std::chrono::milliseconds);
 	
 protected:

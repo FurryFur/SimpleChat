@@ -1,10 +1,14 @@
 //
-// (c) 2015 Media Design School
+// Bachelor of Software Engineering
+// Media Design School
+// Auckland
+// New Zealand
 //
-// File Name	: 
-// Description	: 
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// (c) 2017 Media Design School
+//
+// Description  : A chat server.
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 //Library Includes
@@ -68,7 +72,6 @@ bool CServer::Initialise()
 		return false;
 	}
 
-	//Qs 2: Create the map to hold details of all connected clients
 	m_connectedClients = new std::map < std::string, TClientDetails >() ;
 
 	return true;

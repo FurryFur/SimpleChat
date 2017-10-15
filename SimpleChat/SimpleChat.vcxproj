@@ -161,7 +161,6 @@
     <ClInclude Include="server.h" />
     <ClInclude Include="socket.h" />
     <ClInclude Include="utils.h" />
-    <ClInclude Include="WorkQueue.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

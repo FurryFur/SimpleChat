@@ -4,12 +4,11 @@
 // Auckland
 // New Zealand
 //
-// (c) 2015 Media Design School
+// (c) 2017 Media Design School
 //
-// File Name	: 
-// Description	: 
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// Description  : A wrapper class for windows sockets.
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 #ifndef __SOCKET_H__
@@ -27,18 +26,20 @@ public:
 	CSocket();
 	~CSocket();
 
-	//This function call does the act of creating a socket and binding it to the supplied port number on the local machine.
+	// This function call does the act of creating a socket and binding it to the supplied port number on the local machine.
 	bool Initialise(unsigned short _usPortNumber);
 
-	//Accessor methods
+	// Accessor methods
 	SOCKET GetSocketHandle();
 
-	//Additional Methods to enable broadcasting
+	// Additional Methods to enable broadcasting
 	void SetRemotePort(unsigned short _usRemotePort);
 	void SetRemoteAddress(unsigned long _ulRemoteAddress);
 
-	//Question 7 : Broadcast to detect a server
+	// Enable broadcasting on the socket
 	int EnableBroadcast();
+
+	// Disable broadcasting on the socket
 	int DisableBroadcast();
 
 private:

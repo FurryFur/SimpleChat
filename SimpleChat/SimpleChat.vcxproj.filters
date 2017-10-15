@@ -65,9 +65,6 @@
     <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="WorkQueue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="AtomicQueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>

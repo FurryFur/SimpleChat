@@ -4,12 +4,11 @@
 // Auckland
 // New Zealand
 //
-// (c) 2015 Media Design School
+// (c) 2017 Media Design School
 //
-// File Name	: 
-// Description	: 
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// Description  : A chat server.
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 #ifndef __SERVER_H__
@@ -53,32 +52,49 @@ public:
 	CServer();
 	~CServer();
 
-	// Virtual Methods from the Network Entity Interface.
+	// Initialises the server.
 	virtual bool Initialise() override; //Implicit in the intialization is the creation and binding of the socket
+
+	// Sends a null terminated message to the specified address using UDP.
 	virtual bool SendData(char* dataToSend, const sockaddr_in& address) override;
+
+	// Receive loop for receiving data from the network.
+	// Intended to be run in a separate thread.
+	// This function stores incoming packets in a queue for later processing.
 	virtual void ReceiveData() override;
+
+	// Processes the supplied packet.
 	virtual void ProcessData(TPacket& packetRecvd) override;
+
+	// Gets the remote address of the sender from a received packet.
+	// Stores the address in the 'sendersIP' output variable.
 	virtual void GetRemoteIPAddress(TPacket& packet, char* sendersIP) override;
+
+	// Gets the remote port of the sender from a received packet.
 	virtual unsigned short GetRemotePort(const TPacket& packet) override;
 
+	// Checks the heartbeat signals from the clients.
+	// If they have lost connection then they are removed from the server.
 	virtual void checkHeartbeat() override;
+
+	// Disconnect and remove a client from the server.
 	ClientItT disconnectClient(ClientItT clientIt);
 
+	// Returns a pointer to the work queue.
 	AtomicQueue<std::unique_ptr<TPacket>>* GetWorkQueue();
-	//Qs 2: Function to add clients to the map.
+
 private:
 	bool AddClient(const sockaddr_in& address, const std::string& _strClientName);
 
-	//A Buffer to contain all packet data for the server
+	// A Buffer to contain all packet data for the server
 	char* m_recvBuffer;
-	//A server has a socket object to create the UDP socket at its end.
+	// A server has a socket object to create the UDP socket at its end.
 	CSocket* m_pServerSocket;
 
-	//Qs 2 : Make a map to hold the details of all the client who have connected. 
-	//The structure maps client addresses to client details
+	// The structure maps client addresses to client details
 	std::map<std::string, TClientDetails>* m_connectedClients;
 
-	//A workQueue to distribute messages between the main thread and Receive thread.
+	// A workQueue to distribute messages between the main thread and Receive thread.
 	AtomicQueue<std::unique_ptr<TPacket>>* m_pWorkQueue;
 };
 

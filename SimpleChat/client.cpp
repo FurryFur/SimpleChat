@@ -4,12 +4,11 @@
 // Auckland
 // New Zealand
 //
-// (c) 2015 Media Design School
+// (c) 2017 Media Design School
 //
-// File Name	: 
-// Description	: 
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// Description  : A chat client.
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 //Library Includes
@@ -543,11 +542,6 @@ void CClient::checkHeartbeat()
 			terminateClient("Connection failed... Now terminating");
 		}
 	}
-}
-
-void CClient::GetPacketData(char* _pcLocalBuffer)
-{
-	strcpy_s(_pcLocalBuffer, strlen(m_recvBuffer) + 1, m_recvBuffer);
 }
 
 AtomicQueue<std::unique_ptr<TPacket>>* CClient::GetWorkQueue()

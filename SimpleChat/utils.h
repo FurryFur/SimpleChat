@@ -1,3 +1,16 @@
+//
+// Bachelor of Software Engineering
+// Media Design School
+// Auckland
+// New Zealand
+//
+// (c) 2017 Media Design School
+//
+// Description  : Collection of utility functions
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
+//
+
 #pragma once
 
 #if !defined(__UTILS_H__)
@@ -20,6 +33,7 @@
 #define VALIDATE(a) if (!a) return (false)
 
 namespace {
+	// Converts a sockaddr_in to a human readable string
 	inline std::string ToString(sockaddr_in _sockAddress)
 	{
 		//INET_ADDRSTRLEN - maximum length for IPv4 addresses
@@ -34,6 +48,7 @@ namespace {
 	}
 }
 
+// Converts the input to a string.
 template<typename T>
 std::string ToString(const T& _value)
 {

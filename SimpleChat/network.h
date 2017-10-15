@@ -4,12 +4,11 @@
 // Auckland
 // New Zealand
 //
-// (c) 2015 Media Design School
+// (c) 2017 Media Design School
 //
-// File Name	: 
-// Description	: 
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// Description  : A class for setting up the network.
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 #ifndef __NETWORK_H__
@@ -44,15 +43,27 @@ class CNetwork
 public:
 	~CNetwork();
 	
+	// Initilizes the contained network entity as either a server
+	// or a client.
 	bool Initialise(EEntityType _eType);
+
+	// Initialize the use of windows sockets.
+	// Must be called before using socket functions.
 	void StartUp(); //A network has an ability to start up
+
+	// Cleans up windows sockets.
 	void ShutDown(); //& an ability to be shut down
+	
+	// Returns true if the network is available.
 	bool IsOnline();
-	//Accessor methods
+
+	// Retuns the network entity (either server or client).
 	INetworkEntity* GetNetworkEntity();
 
-	// Singleton Methods
+	// Get the singleton instance of this network.
 	static CNetwork& GetInstance();
+
+	// Destroy the singleton instance.
 	static void DestroyInstance();
 
 private:

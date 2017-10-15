@@ -4,12 +4,11 @@
 // Auckland
 // New Zealand
 //
-// (c) 2015 Media Design School
+// (c) 2017 Media Design School
 //
-// File Name	: 
-// Description	: Input text into a buffer without stalling in a Win32 console window.
-// Author		: Your Name
-// Mail			: your.name@mediadesign.school.nz
+// Description  : Input text into a buffer without stalling in a Win32 console window.
+// Author       : Lance Chaney
+// Mail         : lance.cha7337@mediadesign.school.nz
 //
 
 #ifndef __INPUTLINEBUFFER_H__
