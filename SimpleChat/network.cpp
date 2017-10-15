@@ -77,8 +77,10 @@ CNetwork::StartUp()
 	if (WSAStartup(0x0202, &wsaData) != 0)
 	{
 		_iError = WSAGetLastError();
-		//Diagnostic error messages to be added!!
+		std::cout << "Error: " << _iError << std::endl;
+		ErrorRoutines::PrintWSAErrorInfo(_iError);
 	}
+
 	m_isOnline = true;
 }
 

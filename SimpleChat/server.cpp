@@ -150,6 +150,7 @@ void CServer::ReceiveData()
 		if (_iNumOfBytesReceived < 0)
 		{
 			//int _iError = WSAGetLastError();
+			//std::cout << "Error: " << _iError << std::endl;
 			//ErrorRoutines::PrintWSAErrorInfo(_iError);
 			//return false;
 		}
